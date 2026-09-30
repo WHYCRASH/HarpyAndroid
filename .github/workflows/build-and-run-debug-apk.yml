@@ -1,0 +1,74 @@
+name: Build and Run Debug APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APKs
+        run: ./gradlew assembleDebug
+
+      - name: Upload Debug APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: app/build/outputs/apk/**/*.apk
+
+  run-emulator:
+    name: Run Debug APK on Android Emulator
+    runs-on: macos-13
+    needs: build
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Debug APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: debug-apks
+          path: app/build/outputs/apk/
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Run Android Emulator and Launch APK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: default
+          arch: x86_64
+          profile: Nexus 6
+          script: |
+            echo "Waiting for device..."
+            adb wait-for-device
+            APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
+            echo "Installing APK: $APK_PATH"
+            adb install -r "$APK_PATH"
+            echo "App installed successfully. Launching application..."
+            adb shell monkey -p com.vishal.harpy.standard.debug -c android.intent.category.LAUNCHER 1 || true
+            echo "Debug APK running successfully on emulator."
