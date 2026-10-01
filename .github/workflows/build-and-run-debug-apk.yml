@@ -28,7 +28,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APKs
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleStandardDebug assembleCtosDebug
 
       - name: Upload Debug APK Artifacts
         uses: actions/upload-artifact@v4
